@@ -1795,6 +1795,7 @@ body,
 .staged-image-card:active { cursor: grabbing; }
 .gallery-upload-handoff { margin: 9px 0; color: var(--color-sand); font-size: 10px; line-height: 1.5; }
 .saved-product-link { align-self: flex-start; }
+.publication-help { margin: -8px 0 16px; color: var(--color-steel); font-size: 11px; line-height: 1.6; }
 .variant-picker { display: flex; flex-wrap: wrap; gap: 9px; margin: 0 0 22px; }
 .variant-swatch { display: inline-flex; gap: 8px; align-items: center; border: 1px solid rgb(201 188 166 / 35%); padding: 7px 10px; color: var(--color-warm-white); background: transparent; cursor: pointer; font-size: 10px; }
 .variant-swatch > span { width: 14px; height: 14px; border: 1px solid rgb(246 244 239 / 45%); border-radius: 50%; background: var(--swatch); }

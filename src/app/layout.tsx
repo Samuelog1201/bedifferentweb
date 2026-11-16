@@ -29,6 +29,14 @@ export const metadata: Metadata = {
   description: "BeDifferent — marca colombiana de ropa Fitness Lifestyle.",
   ...(process.env.NEXT_PUBLIC_SITE_URL ? { metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL) } : {}),
   applicationName: "BeDifferent",
+  icons: {
+    icon: [
+      { url: "/icons/bedifferent-favicon-v1.ico", sizes: "any", type: "image/x-icon" },
+      { url: "/icons/bedifferent-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/bedifferent-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: { url: "/icons/bedifferent-180.png", sizes: "180x180", type: "image/png" },
+  },
   openGraph: {
     type: "website",
     locale: "es_CO",

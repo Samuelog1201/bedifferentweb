@@ -9,6 +9,33 @@ test("home links to the public collection", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /Vístete diferente/ })).toBeVisible();
 });
 
+test("official BD favicon metadata and icon assets are served without Next.js defaults", async ({ page, request }) => {
+  await page.goto("/");
+  const iconLinks = await page.locator('head link[rel~="icon"]').evaluateAll((links) =>
+    links.map((link) => (link as HTMLLinkElement).getAttribute("href")),
+  );
+  const appleIcon = await page.locator('head link[rel="apple-touch-icon"]').getAttribute("href");
+
+  expect(iconLinks).toContain("/icons/bedifferent-favicon-v1.ico");
+  expect(iconLinks).toContain("/icons/bedifferent-192.png");
+  expect(iconLinks).toContain("/icons/bedifferent-512.png");
+  expect(appleIcon).toBe("/icons/bedifferent-180.png");
+  expect(iconLinks?.some((href) => href?.includes("next.svg"))).toBe(false);
+
+  for (const [path, contentType] of [
+    ["/favicon.ico", /image\/x-icon|image\/vnd\.microsoft\.icon/],
+    ["/icons/bedifferent-favicon-v1.ico", /image\/x-icon|image\/vnd\.microsoft\.icon/],
+    ["/icons/bedifferent-180.png", /image\/png/],
+    ["/icons/bedifferent-192.png", /image\/png/],
+    ["/icons/bedifferent-512.png", /image\/png/],
+  ] as const) {
+    const response = await request.get(path);
+    expect(response.ok(), `${path} should load`).toBe(true);
+    expect(response.headers()["content-type"]).toMatch(contentType);
+    expect((await response.body()).byteLength).toBeGreaterThan(100);
+  }
+});
+
 test("the public pages are reachable without a customer account", async ({ page }) => {
   for (const [path, heading] of [["/nosotros", /La diferencia/], ["/contacto", /Tienes algo en mente/]] as const) {
     await page.goto(path);

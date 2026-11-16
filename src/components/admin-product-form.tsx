@@ -48,7 +48,10 @@ export function AdminProductForm({ product }: { product?: Product }) {
   const [variants, setVariants] = useState(() => initialVariants(product));
   const [slug, setSlug] = useState(product?.slug ?? "");
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(Boolean(product?.slug));
+  const [publicationStatus, setPublicationStatus] = useState(product?.publication_status ?? "draft");
+  const [publicationSelectionEnabled, setPublicationSelectionEnabled] = useState(Boolean(product));
   const productId = product?.id ?? state.productId;
+  const visiblePublicationStatus = !product && state.productId && !publicationSelectionEnabled ? "draft" : publicationStatus;
   const activeVariants = variants.map((variant) => ({
     ...variant,
     id: variant.id ?? state.variantIds?.find((saved) => saved.client_key === variant.client_key)?.id,
@@ -70,7 +73,10 @@ export function AdminProductForm({ product }: { product?: Product }) {
   function confirmPublication(event: FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     const isPublishing = formData.get("publication_status") === "published" && product?.publication_status !== "published";
-    if (isPublishing && !window.confirm("¿Publicar esta pieza? Será visible en el catálogo público.")) event.preventDefault();
+    const confirmation = productId
+      ? "¿Publicar esta pieza? Será visible en el catálogo público."
+      : "Primero guardaremos el producto como borrador para subir sus fotografías. Después podrás publicarlo. ¿Continuar?";
+    if (isPublishing && !window.confirm(confirmation)) event.preventDefault();
   }
 
   return <form action={action} className="product-admin-form" onSubmit={confirmPublication}>
@@ -135,11 +141,12 @@ export function AdminProductForm({ product }: { product?: Product }) {
     <div className="form-section-title"><span>04</span><h2>Publicación</h2></div>
     <div className="form-fields two-col">
       <label>Estado comercial<select defaultValue={product?.commercial_status ?? "preorder"} name="commercial_status"><option value="preorder">Preventa</option><option value="available">Disponible</option><option value="sold_out">Agotado</option><option value="coming_soon">Próximamente</option></select></label>
-      <label>Visibilidad<select defaultValue={product?.publication_status ?? "draft"} name="publication_status"><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></label>
+      <label>Visibilidad<select onChange={(event) => { setPublicationStatus(event.target.value); setPublicationSelectionEnabled(true); }} name="publication_status" value={visiblePublicationStatus}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></label>
     </div>
+    <p className="publication-help">Para publicar, basta con tener al menos una foto en «Fotografías del producto». Las fotos por color son opcionales.</p>
     <label className="featured-check"><input defaultChecked={product?.is_featured} name="is_featured" type="checkbox" /> Destacar en la página principal</label>
     {state.error && <p aria-live="assertive" className="form-error" role="alert">{state.error}</p>}
-    {state.success && <p aria-live="polite" className="form-success">Producto guardado. Las fotos seleccionadas se están asociando a sus galerías en Supabase Storage.</p>}
+    {state.success && <p aria-live="polite" className="form-success">{!product && state.productId ? "Producto creado como borrador. Las fotos seleccionadas se están asociando a sus galerías; cuando terminen de cargarse, podrás publicarlo guardando de nuevo." : "Producto guardado. Las fotos seleccionadas se están asociando a sus galerías en Supabase Storage."}</p>}
     {state.productId && <Link className="text-link saved-product-link" href={`/admin/productos/${state.productId}/editar?${product ? "saved=1" : "created=1"}`}>Continuar en la edición completa del producto ↗</Link>}
     <button className="button button-dark" disabled={pending} type="submit">{pending ? "Guardando…" : productId ? "Guardar cambios" : "Guardar producto"}</button>
   </form>;

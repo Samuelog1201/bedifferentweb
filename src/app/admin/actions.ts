@@ -140,7 +140,10 @@ export async function saveProduct(_previous: ProductFormState, formData: FormDat
   if (variantsSchemaError) return { error: "La base de datos aún no tiene habilitado el sistema de variantes. Aplica la migración antes de guardar el producto." };
 
   if (fields.publication_status === "published") {
-    if (!id) return { error: "Guarda el producto como borrador, carga al menos una fotografía y luego publícalo." };
+    if (!id) fields.publication_status = "draft";
+  }
+
+  if (fields.publication_status === "published" && id) {
     const [{ count: generalCount, error: generalError }, { data: currentVariants, error: variantsError }] = await Promise.all([
       supabase.from("product_images").select("id", { count: "exact", head: true }).eq("product_id", id),
       supabase.from("product_variants").select("id, product_variant_images(id)").eq("product_id", id),
