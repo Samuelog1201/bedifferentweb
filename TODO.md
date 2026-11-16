@@ -1,0 +1,24 @@
+# BeDifferent development checklist
+
+- [x] Prepare Next.js, TypeScript, Tailwind, lint, and Supabase clients.
+- [x] Install and review the Supabase and Vercel project skills; use Codex's existing frontend-design skill.
+- [x] Inspect Supabase; application tables and product media were empty.
+- [x] Build the public landing, responsive navigation, brand, and contact pages.
+- [x] Build catalog search/filter, product detail, and WhatsApp/Instagram actions.
+- [x] Apply and inspect catalog schema, RLS, private Storage, and signed-image policies.
+- [x] Build admin sign-in, server authorization, and product publishing workflow.
+- [x] Add image upload, validation, previews, primary selection, ordering, and removal.
+- [x] Add SEO metadata, sitemap/robots, responsive layout, and browser coverage.
+- [x] Re-run production build after the private-image delivery change (Webpack backend).
+- [x] Re-run desktop/mobile Playwright tests after the private-image delivery change (22/22 passed).
+- [x] Re-run lint, TypeScript, production build, and desktop/mobile E2E checks on 2026-11-16.
+- [x] Add nonce-based production CSP and verify per-request script nonces with Playwright.
+- [x] Replace unconfirmed launch claims in empty states and verify the copy in desktop/mobile E2E (24/24 passed).
+- [ ] Provision the owner’s Auth account; no matching user exists yet.
+- [ ] Set the canonical site URL after the domain is selected; then verify sitemap/OG URLs.
+- [ ] Incorporate official logo, licensed fonts, and product photography when supplied.
+- [ ] Complete launch review and obtain approval before production deployment.
+- [ ] Verify GitHub remote branches and prepare the initial commit when network access is available.
+- [ ] Restore an active Node/npm version in the development terminal; the final shell probe found the NVM shims unconfigured.
+- [ ] Complete Vercel CLI device login and verify `vercel whoami`.
+- [ ] Refresh/reload Codex MCP tools, then run Vercel's read-only docs search and team-list checks; no project has been linked or deployed.
