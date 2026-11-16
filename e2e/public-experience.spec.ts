@@ -41,6 +41,58 @@ test("core routes load without browser errors", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("brand fonts resolve to their configured families and load their WOFF2 files", async ({ page }) => {
+  const fontResponses: number[] = [];
+  page.on("response", (response) => {
+    if (/_next\/static\/media\/.*\.woff2(?:\?|$)/i.test(response.url())) fontResponses.push(response.status());
+  });
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
+
+  const fontState = await page.evaluate(() => {
+    const family = (selector: string) => getComputedStyle(document.querySelector(selector)!).fontFamily;
+    const variables = getComputedStyle(document.documentElement);
+    const faces = [...document.fonts];
+    return {
+      displayVariable: variables.getPropertyValue("--font-display").trim(),
+      condensedVariable: variables.getPropertyValue("--font-condensed").trim(),
+      bodyVariable: variables.getPropertyValue("--font-body").trim(),
+      heroDisplay: family(".hero-wordmark-be"),
+      heroHeading: family(".hero-wordmark-different"),
+      collectionHeading: family(".collection-editorial-meta h3"),
+      bodyText: family(".hero-bottom p"),
+      checks: {
+        karantina: document.fonts.check('700 100px "Karantina"'),
+        leagueGothic: document.fonts.check('400 40px "League Gothic"'),
+        inter300: document.fonts.check('300 16px "Inter"'),
+        inter500: document.fonts.check('500 16px "Inter"'),
+      },
+      loadedFaces: faces.filter((face) => face.status === "loaded").map((face) => `${face.family}:${face.weight}`),
+    };
+  });
+
+  expect(fontState.displayVariable).toContain("Karantina");
+  expect(fontState.condensedVariable).toContain("League Gothic");
+  expect(fontState.bodyVariable).toContain("Inter");
+  expect(fontState.heroDisplay).toMatch(/^Karantina,/);
+  expect(fontState.heroHeading).toMatch(/^"League Gothic",/);
+  expect(fontState.collectionHeading).toMatch(/^"League Gothic",/);
+  expect(fontState.bodyText).toMatch(/^Inter,/);
+  expect(fontState.checks).toEqual({
+    karantina: true,
+    leagueGothic: true,
+    inter300: true,
+    inter500: true,
+  });
+  expect(fontState.loadedFaces).toContain("Karantina:700");
+  expect(fontState.loadedFaces).toContain("League Gothic:400");
+  expect(fontState.loadedFaces).toContain("Inter:300");
+  expect(fontState.loadedFaces).toContain("Inter:500");
+  expect(fontResponses.length).toBeGreaterThanOrEqual(3);
+  expect(fontResponses.every((status) => status === 200)).toBe(true);
+});
+
 test("legal pages keep the introduction separate from pending final copy", async ({ page }) => {
   const pages = [
     ["/terminos-y-condiciones", "Términos y condiciones"],

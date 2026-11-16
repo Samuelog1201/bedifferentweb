@@ -42,8 +42,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   await connection();
 
   return (
-    <html lang="es-CO">
-      <body className={`${karantina.variable} ${leagueGothic.variable} ${inter.variable}`}><a className="skip-link" href="#main-content">Saltar al contenido</a>{children}</body>
+    <html lang="es-CO" className={`${karantina.variable} ${leagueGothic.variable} ${inter.variable}`}>
+      <body><a className="skip-link" href="#main-content">Saltar al contenido</a>{children}</body>
     </html>
   );
 }
