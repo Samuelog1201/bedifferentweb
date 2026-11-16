@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("home links to the public collection", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle(/BeDifferent/);
-  await expect(page.getByRole("heading", { name: /MORE THAN CLOTHING/ })).toBeVisible();
+  await expect(page.locator(".contact-band").getByText("MORE THAN CLOTHING.", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: /Explorar/ }).first().click();
   await expect(page).toHaveURL(/\/catalogo$/);
   await expect(page.getByRole("heading", { name: /Vístete diferente/ })).toBeVisible();
@@ -26,8 +26,49 @@ test("core routes load without browser errors", async ({ page }) => {
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
   });
-  for (const path of ["/", "/catalogo", "/nosotros", "/contacto", "/admin/login"]) await page.goto(path);
+  for (const path of [
+    "/",
+    "/catalogo",
+    "/nosotros",
+    "/contacto",
+    "/terminos-y-condiciones",
+    "/politica-de-tratamiento-de-datos-personales",
+    "/politica-de-envios-y-entregas",
+    "/politica-de-cambios-devoluciones-y-garantias",
+    "/politica-de-cookies",
+    "/admin/login",
+  ]) await page.goto(path);
   expect(errors).toEqual([]);
+});
+
+test("legal pages keep the introduction separate from pending final copy", async ({ page }) => {
+  const pages = [
+    ["/terminos-y-condiciones", "Términos y condiciones"],
+    ["/politica-de-tratamiento-de-datos-personales", "Política de tratamiento de datos personales"],
+    ["/politica-de-envios-y-entregas", "Política de envíos y entregas"],
+    ["/politica-de-cambios-devoluciones-y-garantias", "Política de cambios, devoluciones y garantías"],
+    ["/politica-de-cookies", "Política de cookies"],
+  ] as const;
+
+  for (const [path, title] of pages) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByText("CONTENIDO EN PREPARACIÓN")).toBeVisible();
+  }
+});
+
+test("philosophy and legal routes fit phone, tablet, and desktop widths", async ({ page }) => {
+  for (const width of [360, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/nosotros", "/politica-de-cookies"]) {
+      await page.goto(path);
+      const dimensions = await page.evaluate(() => ({
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+      }));
+      expect(dimensions.documentWidth, `${path} overflows at ${width}px`).toBeLessThanOrEqual(dimensions.viewportWidth);
+    }
+  }
 });
 
 test("catalog displays the empty state while no products are published", async ({ page }) => {

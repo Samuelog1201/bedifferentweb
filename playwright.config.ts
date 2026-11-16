@@ -1,11 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const e2ePort = 43173;
+const e2eOrigin = `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: e2eOrigin,
     trace: "retain-on-failure",
   },
   projects: [
@@ -13,9 +16,9 @@ export default defineConfig({
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: "npm run start -- --hostname 127.0.0.1",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
+    command: `npm run start -- --hostname 127.0.0.1 --port ${e2ePort}`,
+    url: e2eOrigin,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

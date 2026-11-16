@@ -12,6 +12,7 @@ export async function proxy(request: NextRequest) {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`,
     `style-src 'self' 'nonce-${nonce}'`,
+    "style-src-attr 'unsafe-hashes' 'sha256-zlqnbDt84zf1iSefLU/ImC54isoprH/MRiVZGskwexk='",
     `img-src 'self' data: blob:${supabaseOrigin ? ` ${supabaseOrigin}` : ""}`,
     `connect-src 'self'${supabaseOrigin ? ` ${supabaseOrigin}` : ""}${websocketOrigin ? ` ${websocketOrigin}` : ""}${development ? " ws://localhost:3000 ws://127.0.0.1:3000" : ""}`,
     "font-src 'self' data:",
