@@ -1629,3 +1629,155 @@ body,
   .legal-page-intro { padding-left: 0; }
   .legal-page h1 { font-size: clamp(48px, 14vw, 64px); }
 }
+
+/* Original BeDifferent campaign imagery: preserve artwork and source proportions. */
+.philosophy-origin-image img {
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  filter: none;
+}
+.philosophy-photo {
+  height: auto;
+  aspect-ratio: 3 / 2;
+}
+.philosophy-photo img {
+  object-fit: contain;
+  filter: none;
+}
+.philosophy-photo-community img,
+.philosophy-photo-front img,
+.philosophy-photo-back img { object-position: center; }
+
+/* Keep collection indices visually separate from the front/back labels. */
+.collection-image-number {
+  top: 14px;
+  right: auto;
+  bottom: auto;
+  left: 14px;
+  border: 1px solid rgb(246 244 239 / 42%);
+  padding: 6px 8px;
+  background: rgb(10 10 10 / 76%);
+  font-size: 10px;
+  line-height: 1;
+}
+.collection-image-side > span {
+  right: 10px;
+  bottom: 10px;
+  border: 1px solid rgb(246 244 239 / 36%);
+  padding: 5px 7px;
+  background: rgb(10 10 10 / 76%);
+  font-size: 9px;
+  line-height: 1;
+}
+.collection-image-side:first-child > span { right: auto; left: 10px; }
+
+/* Admin palette inversion: ink canvas, warm-light fields, unchanged structure. */
+.admin-shell,
+.admin-login-shell {
+  color: var(--color-raw-white);
+  background: var(--color-ink);
+}
+.admin-content,
+.admin-login-page { color: var(--color-raw-white); }
+.admin-topbar {
+  border-color: var(--color-charcoal);
+  color: var(--color-raw-white);
+}
+.admin-topbar .text-link,
+.admin-logout,
+.admin-product-row strong,
+.admin-row-link strong,
+.admin-heading h1,
+.admin-edit-heading h1,
+.narrow-admin > h1,
+.admin-login-page h1,
+.form-section-title h2 { color: var(--color-raw-white); }
+.admin-account,
+.admin-stats article span,
+.admin-product-row small,
+.admin-product-row > div:first-child > span,
+.admin-row-link small,
+.empty-admin,
+.admin-login-copy,
+.admin-login-page > .eyebrow { color: var(--color-steel); }
+.admin-stats article,
+.admin-product-list,
+.admin-product-row,
+.admin-row-link,
+.form-section-title { border-color: var(--color-charcoal); }
+.admin-stats article { background: var(--color-charcoal); }
+.admin-form label,
+.product-admin-form > label,
+.size-checkboxes legend,
+.form-section-title > span,
+.image-alt-label { color: var(--color-sand) !important; }
+.admin-form input,
+.product-admin-form input:not([type="checkbox"]),
+.product-admin-form select,
+.product-admin-form textarea,
+.image-alt-label input {
+  border-color: rgb(10 10 10 / 24%) !important;
+  color: var(--color-ink) !important;
+  background: var(--color-raw-white) !important;
+  caret-color: var(--color-ink);
+}
+.admin-form input::placeholder,
+.product-admin-form input::placeholder,
+.product-admin-form textarea::placeholder,
+.image-alt-label input::placeholder { color: var(--color-steel); opacity: 1; }
+.admin-form input:focus,
+.product-admin-form input:focus,
+.product-admin-form select:focus,
+.product-admin-form textarea:focus,
+.image-alt-label input:focus {
+  border-color: var(--color-sand) !important;
+  outline: 2px solid var(--color-sand);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+.admin-form select option,
+.product-admin-form select option {
+  color: var(--color-ink);
+  background: var(--color-raw-white);
+}
+.product-admin-form .size-checkboxes label,
+.product-admin-form .featured-check,
+.product-admin-form .size-option label {
+  border-color: var(--color-charcoal);
+  color: var(--color-raw-white);
+  background: transparent;
+}
+.product-admin-form input[type="checkbox"] { accent-color: var(--color-sand); }
+.product-admin-form .size-option .size-unavailable { color: var(--color-steel); }
+.image-upload {
+  border-color: rgb(201 188 166 / 55%);
+  color: var(--color-raw-white);
+  background: var(--color-charcoal);
+}
+.image-upload > span,
+.admin-image-actions button { color: var(--color-raw-white); }
+.image-upload small,
+.form-feedback,
+.image-alt-label { color: var(--color-steel) !important; }
+.form-error,
+.form-success { color: var(--color-sand); background: var(--color-charcoal); }
+.admin-image-preview { background: var(--color-charcoal); }
+.admin-row-actions button { color: var(--color-sand); }
+.admin-login-page h1 em { color: var(--color-sand); }
+.admin-form .button-dark,
+.product-admin-form .button-dark { color: var(--color-ink); background: var(--color-sand); }
+.admin-form .button-dark:hover,
+.product-admin-form .button-dark:hover { color: var(--color-ink); background: var(--color-raw-white); }
+
+@media (max-width: 700px) {
+  .philosophy-photo-grid { grid-template-columns: 1fr; }
+  .philosophy-photo,
+  .philosophy-photo-community,
+  .philosophy-photo-front,
+  .philosophy-photo-back {
+    height: auto;
+    grid-row: auto;
+    aspect-ratio: 3 / 2;
+  }
+}

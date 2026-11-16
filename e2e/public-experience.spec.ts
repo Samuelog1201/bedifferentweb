@@ -93,6 +93,66 @@ test("brand fonts resolve to their configured families and load their WOFF2 file
   expect(fontResponses.every((status) => status === 200)).toBe(true);
 });
 
+test("philosophy brand images load without cropping or color filters", async ({ page }) => {
+  for (const width of [360, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/nosotros");
+
+    const images = page.locator(".philosophy-origin-image img, .philosophy-photo img");
+    await expect(images).toHaveCount(4);
+    for (const image of await images.all()) {
+      await image.scrollIntoViewIfNeeded();
+      await image.evaluate((element) => (element as HTMLImageElement).decode());
+      const state = await image.evaluate((element) => {
+        const imageElement = element as HTMLImageElement;
+        const style = getComputedStyle(imageElement);
+        return {
+          naturalWidth: imageElement.naturalWidth,
+          naturalHeight: imageElement.naturalHeight,
+          objectFit: style.objectFit,
+          filter: style.filter,
+        };
+      });
+      expect(state.naturalWidth).toBeGreaterThan(0);
+      expect(state.naturalHeight).toBeGreaterThan(0);
+      expect(state.naturalWidth / state.naturalHeight).toBeCloseTo(1.5, 1);
+      expect(state.objectFit).toBe("contain");
+      expect(state.filter).toBe("none");
+    }
+  }
+});
+
+test("collection image labels do not overlap the editorial index", async ({ page }) => {
+  for (const width of [360, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const overlaps = await page.locator(".collection-editorial-image").evaluateAll((cards) => cards.map((card) => {
+      const index = card.querySelector(".collection-image-number")!.getBoundingClientRect();
+      return [...card.querySelectorAll(".collection-image-side > span")].some((label) => {
+        const rect = label.getBoundingClientRect();
+        return index.left < rect.right && index.right > rect.left && index.top < rect.bottom && index.bottom > rect.top;
+      });
+    }));
+    expect(overlaps, `collection labels overlap at ${width}px`).toEqual([false, false]);
+  }
+});
+
+test("admin login uses an ink canvas and light, readable fields", async ({ page }) => {
+  await page.goto("/admin/login");
+  const colors = await page.evaluate(() => {
+    const shell = getComputedStyle(document.querySelector(".admin-login-shell")!);
+    const input = getComputedStyle(document.querySelector(".admin-form input")!);
+    const label = getComputedStyle(document.querySelector(".admin-form label")!);
+    return { background: shell.backgroundColor, fieldBackground: input.backgroundColor, fieldText: input.color, label: label.color };
+  });
+  expect(colors).toEqual({
+    background: "rgb(10, 10, 10)",
+    fieldBackground: "rgb(246, 244, 239)",
+    fieldText: "rgb(10, 10, 10)",
+    label: "rgb(201, 188, 166)",
+  });
+});
+
 test("legal pages keep the introduction separate from pending final copy", async ({ page }) => {
   const pages = [
     ["/terminos-y-condiciones", "Términos y condiciones"],

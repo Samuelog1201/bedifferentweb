@@ -12,22 +12,22 @@ export const metadata: Metadata = {
 
 const disciplines = [
   {
-    image: "/images/editorial/strength.jpg",
-    alt: "Una persona entrenando fuerza en un gimnasio",
-    label: "FUERZA",
-    className: "philosophy-photo philosophy-photo-strength",
+    image: "/images/brand/original-community.png",
+    alt: "Modelos hombre y mujer muestran las camisetas Original BeDifferent en colores negro, beige y gris, por delante y por detrás",
+    label: "DISTINTAS FORMAS DE SER",
+    className: "philosophy-photo philosophy-photo-community",
   },
   {
-    image: "/images/editorial/running.jpg",
-    alt: "Corredores avanzan juntos al aire libre",
-    label: "MOVIMIENTO",
-    className: "philosophy-photo philosophy-photo-running",
+    image: "/images/brand/original-woman-front.png",
+    alt: "Modelo con camiseta Original BeDifferent blanca, vista frontal y detalles de la prenda",
+    label: "ORIGINAL / FRENTE",
+    className: "philosophy-photo philosophy-photo-front",
   },
   {
-    image: "/images/editorial/training.jpg",
-    alt: "Atleta realiza una dominada como parte de su entrenamiento",
-    label: "CONSTANCIA",
-    className: "philosophy-photo philosophy-photo-training",
+    image: "/images/brand/original-woman-back.png",
+    alt: "Modelo con camiseta Original BeDifferent blanca, vista posterior con el mensaje Discipline Makes the Difference",
+    label: "ORIGINAL / ESPALDA",
+    className: "philosophy-photo philosophy-photo-back",
   },
 ];
 
@@ -69,13 +69,13 @@ export default function AboutPage() {
           </div>
           <figure className="philosophy-origin-image">
             <Image
-              alt="Camiseta BeDifferent Original, vista posterior"
-              height={900}
+              alt="Mockup original de camisetas BeDifferent en vistas frontales y posteriores, con sus diseños y colores originales"
+              height={1024}
               sizes="(max-width: 700px) 100vw, 88vw"
-              src="/images/collections/original-back.jpg"
-              width={1400}
+              src="/images/brand/original-story-mockup.png"
+              width={1536}
             />
-            <figcaption><span>BE DIFFERENT / ORIGINAL</span><span>IDENTIDAD QUE TE ACOMPAÑA.</span></figcaption>
+            <figcaption><span>BE DIFFERENT / ORIGINAL</span><span>FRENTE Y ESPALDA / DISEÑO ORIGINAL</span></figcaption>
           </figure>
         </section>
 
