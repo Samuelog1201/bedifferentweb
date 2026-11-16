@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      product_variant_images: {
+        Row: {
+          alt_text: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          sort_order: number
+          storage_path: string
+          variant_id: string
+        }
+        Insert: {
+          alt_text?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          sort_order?: number
+          storage_path: string
+          variant_id: string
+        }
+        Update: {
+          alt_text?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          sort_order?: number
+          storage_path?: string
+          variant_id?: string
+        }
+        Relationships: [{
+          foreignKeyName: "product_variant_images_variant_id_fkey"
+          columns: ["variant_id"]
+          isOneToOne: false
+          referencedRelation: "product_variants"
+          referencedColumns: ["id"]
+        }]
+      }
+      product_variant_sizes: {
+        Row: {
+          id: string
+          inventory_count: number | null
+          is_available: boolean
+          size: string
+          sort_order: number
+          variant_id: string
+        }
+        Insert: {
+          id?: string
+          inventory_count?: number | null
+          is_available?: boolean
+          size: string
+          sort_order?: number
+          variant_id: string
+        }
+        Update: {
+          id?: string
+          inventory_count?: number | null
+          is_available?: boolean
+          size?: string
+          sort_order?: number
+          variant_id?: string
+        }
+        Relationships: [{
+          foreignKeyName: "product_variant_sizes_variant_id_fkey"
+          columns: ["variant_id"]
+          isOneToOne: false
+          referencedRelation: "product_variants"
+          referencedColumns: ["id"]
+        }]
+      }
+      product_variants: {
+        Row: {
+          color_hex: string
+          created_at: string
+          id: string
+          name: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          color_hex: string
+          created_at?: string
+          id?: string
+          name: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          color_hex?: string
+          created_at?: string
+          id?: string
+          name?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [{
+          foreignKeyName: "product_variants_product_id_fkey"
+          columns: ["product_id"]
+          isOneToOne: false
+          referencedRelation: "products"
+          referencedColumns: ["id"]
+        }]
+      }
       product_images: {
         Row: {
           alt_text: string

@@ -1,14 +1,20 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useState, type CSSProperties, type MouseEvent } from "react";
 import { ArrowUpRight, MessageCircle } from "lucide-react";
 import type { Product } from "@/lib/data/products";
+import { useProductVariant } from "@/components/product-variant-context";
 
 export function ProductInquiry({ product, productUrl }: { product: Product; productUrl: string }) {
-  const [size, setSize] = useState("");
-  const message = `Hola, BeDifferent. Estoy interesado en ${product.name}${size ? `, talla ${size}` : ""}${product.color ? `, color ${product.color}` : ""}. Quisiera conocer más información sobre su ${product.commercial_status === "preorder" ? "preventa" : "disponibilidad"}.`;
+  const [sizeSelection, setSizeSelection] = useState<{ variantId: string | null; size: string }>({ variantId: null, size: "" });
+  const { selectedVariant, setSelectedVariantId } = useProductVariant();
+  const size = sizeSelection.variantId === (selectedVariant?.id ?? null) ? sizeSelection.size : "";
+  const selectedColor = selectedVariant?.name ?? product.color;
+  const message = `Hola, BeDifferent. Estoy interesado en ${product.name}${size ? `, talla ${size}` : ""}${selectedColor ? `, color ${selectedColor}` : ""}. Quisiera conocer más información sobre su ${product.commercial_status === "preorder" ? "preventa" : "disponibilidad"}.`;
   const whatsappUrl = `https://wa.me/573053744560?text=${encodeURIComponent(`${message} ${productUrl}`)}`;
-  const sizes = [...product.product_sizes].sort((a, b) => a.sort_order - b.sort_order);
+  const sizes = selectedVariant
+    ? [...selectedVariant.product_variant_sizes].sort((a, b) => a.sort_order - b.sort_order)
+    : [...product.product_sizes].sort((a, b) => a.sort_order - b.sort_order);
 
   function addAbsoluteProductLink(event: MouseEvent<HTMLAnchorElement>) {
     const absoluteUrl = new URL(productUrl, window.location.origin).href;
@@ -17,10 +23,25 @@ export function ProductInquiry({ product, productUrl }: { product: Product; prod
 
   return (
     <div className="inquiry-panel">
+      {product.product_variants.length > 0 && <>
+        <p className="eyebrow">ELIGE TU COLOR</p>
+        <div aria-label="Selecciona un color" className="variant-picker" role="group">
+          {product.product_variants.map((variant) => <button
+            aria-label={variant.name}
+            aria-pressed={selectedVariant?.id === variant.id}
+            className="variant-swatch"
+            key={variant.id}
+            onClick={() => setSelectedVariantId(variant.id)}
+            style={{ "--swatch": variant.color_hex } as CSSProperties}
+            title={variant.name}
+            type="button"
+          ><span aria-hidden="true" />{variant.name}</button>)}
+        </div>
+      </>}
       <p className="eyebrow">ELIGE TU TALLA</p>
       <div aria-label="Selecciona una talla" className="size-picker" role="group">
         {sizes.map((item) => (
-          <button aria-pressed={size === item.size} className="size-button" disabled={!item.is_available} key={item.id} onClick={() => setSize(item.size)} type="button">
+            <button aria-pressed={size === item.size} className="size-button" disabled={!item.is_available} key={item.id} onClick={() => setSizeSelection({ variantId: selectedVariant?.id ?? null, size: item.size })} type="button">
             {item.size}
           </button>
         ))}

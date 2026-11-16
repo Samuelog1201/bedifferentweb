@@ -11,8 +11,11 @@ const statusLabel: Record<Product["commercial_status"], string> = {
 };
 
 export function ProductCard({ product }: { product: Product }) {
+  const variantImages = product.product_variants.flatMap((variant) => variant.product_variant_images);
   const image = product.product_images.find((item) => item.is_primary)
-    ?? [...product.product_images].sort((a, b) => a.sort_order - b.sort_order)[0];
+    ?? [...product.product_images].sort((a, b) => a.sort_order - b.sort_order)[0]
+    ?? variantImages.find((item) => item.is_primary)
+    ?? [...variantImages].sort((a, b) => a.sort_order - b.sort_order)[0];
   const imageUrl = image?.signed_url ?? null;
 
   return (
@@ -33,7 +36,7 @@ export function ProductCard({ product }: { product: Product }) {
         <div>
           <p className="product-category">{product.category.replace("-", " ")}</p>
           <h3><Link href={`/producto/${product.slug}`}>{product.name}</Link></h3>
-          {product.color && <p className="product-color">{product.color}</p>}
+          {(product.product_variants[0]?.name || product.color) && <p className="product-color">{product.product_variants[0]?.name || product.color}</p>}
         </div>
         <div className="product-price-group">
           {product.compare_at_price_cop && <span className="product-compare-price">{formatCop(product.compare_at_price_cop)}</span>}

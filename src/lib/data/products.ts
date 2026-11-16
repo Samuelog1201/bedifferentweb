@@ -1,16 +1,22 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import type { Product, ProductImage } from "./product-utils";
+import type { Product, ProductImage, ProductVariantImage } from "./product-utils";
 export type { Product } from "./product-utils";
 
 const signedUrlLifetimeSeconds = 60 * 60;
 const catalogPageSize = 12;
 
-async function attachSignedImageUrls<T extends { product_images: ProductImage[] }>(
+async function attachSignedImageUrls<T extends {
+  product_images: ProductImage[];
+  product_variants: { product_variant_images: ProductVariantImage[] }[];
+}>(
   supabase: Awaited<ReturnType<typeof createClient>>,
   products: T[],
 ) {
-  const paths = [...new Set(products.flatMap((product) => product.product_images.map((image) => image.storage_path)))];
+  const paths = [...new Set(products.flatMap((product) => [
+    ...product.product_images.map((image) => image.storage_path),
+    ...product.product_variants.flatMap((variant) => variant.product_variant_images.map((image) => image.storage_path)),
+  ]))];
   if (paths.length === 0) return products;
 
   const { data, error } = await supabase.storage
@@ -21,6 +27,10 @@ async function attachSignedImageUrls<T extends { product_images: ProductImage[] 
     return products.map((product) => ({
       ...product,
       product_images: product.product_images.map((image) => ({ ...image, signed_url: null })),
+      product_variants: product.product_variants.map((variant) => ({
+        ...variant,
+        product_variant_images: variant.product_variant_images.map((image) => ({ ...image, signed_url: null })),
+      })),
     }));
   }
 
@@ -28,11 +38,15 @@ async function attachSignedImageUrls<T extends { product_images: ProductImage[] 
   return products.map((product) => ({
     ...product,
     product_images: product.product_images.map((image) => ({ ...image, signed_url: urls.get(image.storage_path) ?? null })),
+    product_variants: product.product_variants.map((variant) => ({
+      ...variant,
+      product_variant_images: variant.product_variant_images.map((image) => ({ ...image, signed_url: urls.get(image.storage_path) ?? null })),
+    })),
   }));
 }
 
 function productListQuery(supabase: Awaited<ReturnType<typeof createClient>>) {
-  return supabase.from("products").select("*, product_images(*), product_sizes(*)").eq("publication_status", "published");
+  return supabase.from("products").select("*, product_images(*), product_sizes(*), product_variants(*, product_variant_images(*), product_variant_sizes(*))").eq("publication_status", "published");
 }
 
 export async function getFeaturedProducts() {
@@ -63,7 +77,7 @@ export async function getCatalogProducts(options: {
   const page = Math.max(1, Math.floor(options.page));
   const offset = (page - 1) * catalogPageSize;
   const supabase = await createClient();
-  let query = supabase.from("products").select("*, product_images(*), product_sizes(*)", { count: "exact" }).eq("publication_status", "published");
+  let query = supabase.from("products").select("*, product_images(*), product_sizes(*), product_variants(*, product_variant_images(*), product_variant_sizes(*))", { count: "exact" }).eq("publication_status", "published");
 
   if (options.category !== "all") query = query.eq("category", options.category);
   if (options.status !== "all") query = query.eq("commercial_status", options.status);

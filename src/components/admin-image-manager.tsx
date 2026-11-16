@@ -1,18 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, Star, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { ProductImage } from "@/lib/data/product-utils";
 import type { Tables } from "@/lib/supabase/database.types";
 
-type ProductImageRow = Tables<"product_images">;
-const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+type ProductImageRow = Tables<"product_images"> | Tables<"product_variant_images">;
+const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const maxBytes = 8 * 1024 * 1024;
 const maxImages = 12;
 
-async function optimizeImage(file: File) {
+export async function optimizeImage(file: File) {
   const bitmap = await createImageBitmap(file);
   try {
     if (bitmap.width * bitmap.height > 40_000_000) throw new Error("image-too-large");
@@ -32,12 +32,29 @@ async function optimizeImage(file: File) {
   }
 }
 
-export function AdminImageManager({ productId, productName, initialImages }: { productId: string; productName: string; initialImages: ProductImageRow[] }) {
+export function AdminImageManager({
+  productId,
+  productName,
+  initialImages,
+  variantId,
+  initialFiles = [],
+  initialPrimaryIndex = -1,
+  galleryTitle,
+}: {
+  productId: string;
+  productName: string;
+  initialImages: ProductImageRow[];
+  variantId?: string;
+  initialFiles?: File[];
+  initialPrimaryIndex?: number;
+  galleryTitle?: string;
+}) {
   const [images, setImages] = useState<ProductImage[]>(() => initialImages
-    .map((image) => ({ ...image, signed_url: null }))
+    .map((image) => ({ ...image, signed_url: null }) as ProductImage)
     .sort((a, b) => a.sort_order - b.sort_order));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const pendingUploadStarted = useRef(false);
   const imagePathsKey = JSON.stringify(images.map((image) => image.storage_path));
 
   useEffect(() => {
@@ -59,13 +76,11 @@ export function AdminImageManager({ productId, productName, initialImages }: { p
     return () => { cancelled = true; };
   }, [imagePathsKey]);
 
-  async function uploadFiles(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
+  const uploadFileList = useCallback(async (files: File[]) => {
     if (!files.length) return;
     const invalid = files.find((file) => !acceptedTypes.has(file.type) || file.size > maxBytes);
     if (invalid) {
-      setMessage("Usa JPG, PNG, WebP o AVIF de máximo 8 MB por imagen.");
+      setMessage("Usa JPG, PNG o WebP de máximo 8 MB por imagen.");
       return;
     }
     if (images.length + files.length > maxImages) {
@@ -85,30 +100,55 @@ export function AdminImageManager({ productId, productName, initialImages }: { p
         const { error: uploadError } = await supabase.storage.from("be-different-products").upload(path, file, { contentType: "image/webp", upsert: false });
         if (uploadError) throw uploadError;
 
-        const { data, error } = await supabase.from("product_images").insert({
-          product_id: productId,
+        const imageFields = {
           storage_path: path,
           alt_text: `${productName} · imagen ${images.length + uploaded.length + 1}`.slice(0, 120),
           sort_order: images.length + uploaded.length,
           is_primary: images.length + uploaded.length === 0,
-        }).select("*").single();
+        };
+        const { data, error } = variantId
+          ? await supabase.from("product_variant_images").insert({ ...imageFields, variant_id: variantId }).select("*").single()
+          : await supabase.from("product_images").insert({ ...imageFields, product_id: productId }).select("*").single();
         if (error) {
           await supabase.storage.from("be-different-products").remove([path]);
           throw error;
         }
-        uploaded.push({ ...data, signed_url: null });
+        uploaded.push({ ...data, signed_url: null } as unknown as ProductImage);
         const { data: signed } = await supabase.storage.from("be-different-products").createSignedUrl(path, 60 * 60);
         if (signed?.signedUrl) uploaded[uploaded.length - 1] = { ...uploaded[uploaded.length - 1], signed_url: signed.signedUrl };
+      }
+      if (uploaded.length && initialPrimaryIndex >= 0 && initialPrimaryIndex < uploaded.length) {
+        const selected = uploaded[initialPrimaryIndex];
+        const clearResult = variantId
+          ? await supabase.from("product_variant_images").update({ is_primary: false }).eq("variant_id", variantId)
+          : await supabase.from("product_images").update({ is_primary: false }).eq("product_id", productId);
+        const primaryResult = variantId
+          ? await supabase.from("product_variant_images").update({ is_primary: true }).eq("id", selected.id).eq("variant_id", variantId)
+          : await supabase.from("product_images").update({ is_primary: true }).eq("id", selected.id).eq("product_id", productId);
+        if (clearResult.error || primaryResult.error) throw new Error("primary-image-save-failed");
+        uploaded[initialPrimaryIndex] = { ...selected, is_primary: true };
       }
       setMessage(`${uploaded.length} ${uploaded.length === 1 ? "imagen cargada" : "imágenes cargadas"}.`);
     } catch {
       setMessage(uploaded.length
         ? `Carga parcial: ${uploaded.length} ${uploaded.length === 1 ? "imagen quedó cargada" : "imágenes quedaron cargadas"}; el resto no se completó.`
-        : "No se completó la carga. Usa JPG, PNG, WebP o AVIF válidos de máximo 8 MB y vuelve a intentarlo.");
+        : "No se completó la carga. Usa JPG, PNG o WebP válidos de máximo 8 MB y vuelve a intentarlo.");
     } finally {
       if (uploaded.length) setImages((current) => [...current, ...uploaded]);
       setBusy(false);
     }
+  }, [images, initialPrimaryIndex, productId, productName, variantId]);
+
+  useEffect(() => {
+    if (!initialFiles.length || pendingUploadStarted.current) return;
+    pendingUploadStarted.current = true;
+    queueMicrotask(() => { void uploadFileList(initialFiles); });
+  }, [initialFiles, uploadFileList]);
+
+  async function uploadFiles(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    await uploadFileList(files);
   }
 
   async function setPrimary(imageId: string) {
@@ -119,17 +159,23 @@ export function AdminImageManager({ productId, productName, initialImages }: { p
     const supabase = createClient();
     try {
       if (previousPrimary) {
-        const { error: clearError } = await supabase.from("product_images").update({ is_primary: false }).eq("id", previousPrimary.id).eq("product_id", productId);
+        const { error: clearError } = variantId
+          ? await supabase.from("product_variant_images").update({ is_primary: false }).eq("id", previousPrimary.id).eq("variant_id", variantId)
+          : await supabase.from("product_images").update({ is_primary: false }).eq("id", previousPrimary.id).eq("product_id", productId);
         if (clearError) throw clearError;
       }
-      const { error } = await supabase.from("product_images").update({ is_primary: true }).eq("id", imageId).eq("product_id", productId);
+      const { error } = variantId
+        ? await supabase.from("product_variant_images").update({ is_primary: true }).eq("id", imageId).eq("variant_id", variantId)
+        : await supabase.from("product_images").update({ is_primary: true }).eq("id", imageId).eq("product_id", productId);
       if (error) throw error;
       setImages((current) => current.map((image) => ({ ...image, is_primary: image.id === imageId })));
     } catch {
       let restoreFailed = false;
       if (previousPrimary) {
         try {
-          const { error } = await supabase.from("product_images").update({ is_primary: true }).eq("id", previousPrimary.id).eq("product_id", productId);
+          const { error } = variantId
+            ? await supabase.from("product_variant_images").update({ is_primary: true }).eq("id", previousPrimary.id).eq("variant_id", variantId)
+            : await supabase.from("product_images").update({ is_primary: true }).eq("id", previousPrimary.id).eq("product_id", productId);
           restoreFailed = Boolean(error);
         } catch {
           restoreFailed = true;
@@ -143,16 +189,17 @@ export function AdminImageManager({ productId, productName, initialImages }: { p
     }
   }
 
-  async function move(imageId: string, direction: -1 | 1) {
+  async function moveTo(imageId: string, target: number) {
     const index = images.findIndex((image) => image.id === imageId);
-    const target = index + direction;
     if (index < 0 || target < 0 || target >= images.length) return;
     const reordered = [...images];
     [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
     setBusy(true);
     const supabase = createClient();
     try {
-      const results = await Promise.all(reordered.map((image, sort_order) => supabase.from("product_images").update({ sort_order }).eq("id", image.id).eq("product_id", productId)));
+      const results = await Promise.all(reordered.map((image, sort_order) => variantId
+        ? supabase.from("product_variant_images").update({ sort_order }).eq("id", image.id).eq("variant_id", variantId)
+        : supabase.from("product_images").update({ sort_order }).eq("id", image.id).eq("product_id", productId)));
       if (results.some((result) => result.error)) {
         setMessage("No se pudo guardar todo el nuevo orden. Recarga la galería antes de continuar.");
       } else {
@@ -165,12 +212,19 @@ export function AdminImageManager({ productId, productName, initialImages }: { p
     }
   }
 
+  async function move(imageId: string, direction: -1 | 1) {
+    const index = images.findIndex((image) => image.id === imageId);
+    await moveTo(imageId, index + direction);
+  }
+
   async function removeImage(image: ProductImage) {
     if (!window.confirm("¿Eliminar esta imagen de la publicación?")) return;
     setBusy(true);
     const supabase = createClient();
     try {
-      const { error } = await supabase.from("product_images").delete().eq("id", image.id).eq("product_id", productId);
+      const { error } = variantId
+        ? await supabase.from("product_variant_images").delete().eq("id", image.id).eq("variant_id", variantId)
+        : await supabase.from("product_images").delete().eq("id", image.id).eq("product_id", productId);
       if (error) {
         setMessage("No se pudo eliminar la imagen.");
         return;
@@ -189,14 +243,18 @@ export function AdminImageManager({ productId, productName, initialImages }: { p
       setImages(remaining);
 
       if (image.is_primary && remaining[0]) {
-        const { error: primaryError } = await supabase.from("product_images").update({ is_primary: true }).eq("id", remaining[0].id).eq("product_id", productId);
+        const { error: primaryError } = variantId
+          ? await supabase.from("product_variant_images").update({ is_primary: true }).eq("id", remaining[0].id).eq("variant_id", variantId)
+          : await supabase.from("product_images").update({ is_primary: true }).eq("id", remaining[0].id).eq("product_id", productId);
         if (primaryError) issues.push("No se pudo asignar una imagen principal nueva.");
         else promotedPrimaryId = remaining[0].id;
       }
 
       const updatedImages = remaining.map((item) => ({ ...item, is_primary: item.id === promotedPrimaryId || item.is_primary, sort_order: item.sort_order }));
       setImages(updatedImages);
-      const orderResults = await Promise.all(updatedImages.map((item) => supabase.from("product_images").update({ sort_order: item.sort_order }).eq("id", item.id).eq("product_id", productId)));
+      const orderResults = await Promise.all(updatedImages.map((item) => variantId
+        ? supabase.from("product_variant_images").update({ sort_order: item.sort_order }).eq("id", item.id).eq("variant_id", variantId)
+        : supabase.from("product_images").update({ sort_order: item.sort_order }).eq("id", item.id).eq("product_id", productId)));
       if (orderResults.some((result) => result.error)) issues.push("No se pudo guardar todo el nuevo orden.");
       if (storageCleanupFailed) issues.push("El archivo privado no pudo eliminarse y requiere limpieza.");
 
@@ -213,7 +271,10 @@ export function AdminImageManager({ productId, productName, initialImages }: { p
     if (value === image.alt_text) return;
     setBusy(true);
     try {
-      const { error } = await createClient().from("product_images").update({ alt_text: value }).eq("id", image.id).eq("product_id", productId);
+      const supabase = createClient();
+      const { error } = variantId
+        ? await supabase.from("product_variant_images").update({ alt_text: value }).eq("id", image.id).eq("variant_id", variantId)
+        : await supabase.from("product_images").update({ alt_text: value }).eq("id", image.id).eq("product_id", productId);
       if (error) setMessage("No se pudo guardar el texto alternativo.");
       else setImages((current) => current.map((item) => item.id === image.id ? { ...item, alt_text: value } : item));
     } catch {
@@ -224,12 +285,17 @@ export function AdminImageManager({ productId, productName, initialImages }: { p
   }
 
   return <section className="image-manager">
-    <div className="form-section-title"><span>04</span><h2>Fotografías</h2></div>
-    <label className="image-upload"><ImagePlus aria-hidden="true" size={19} /><span>{busy ? "Procesando…" : "Añadir fotografías"}<small>JPG, PNG, WebP o AVIF · máx. 8 MB · hasta {maxImages} por producto</small></span><input accept="image/jpeg,image/png,image/webp,image/avif" disabled={busy || images.length >= maxImages} multiple onChange={uploadFiles} type="file" /></label>
+    <div className="form-section-title"><span>{variantId ? "COLOR" : "02"}</span><h2>{galleryTitle ?? (variantId ? `Fotografías de ${productName.split(" · ").at(-1)}` : "Fotografías del producto")}</h2></div>
+    <label className="image-upload"><ImagePlus aria-hidden="true" size={19} /><span>{busy ? "SUBIENDO IMÁGENES…" : "+ SUBIR IMÁGENES"}<small>JPG, JPEG, PNG o WebP · máx. 8 MB · hasta {maxImages} por galería. Arrastra las tarjetas para ordenar.</small></span><input accept="image/jpeg,image/png,image/webp" disabled={busy || images.length >= maxImages} multiple onChange={uploadFiles} type="file" /></label>
     {message && <p aria-live="polite" className="form-feedback">{message}</p>}
+    {initialFiles.length > 0 && !busy && message.startsWith("No se completó la carga") && <button className="button button-outline retry-image-upload" onClick={() => { void uploadFileList(initialFiles); }} type="button">Reintentar fotos seleccionadas</button>}
     {images.length > 0 && <div className="admin-image-grid">{images.map((image, index) => {
       const src = image.signed_url;
-      return <article className="admin-image-card" key={image.id}>
+      return <article className="admin-image-card" draggable={!busy} key={image.id} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+        event.preventDefault();
+        const draggedId = event.dataTransfer.getData("text/plain");
+        if (draggedId) void moveTo(draggedId, index);
+      }} onDragStart={(event) => event.dataTransfer.setData("text/plain", image.id)}>
         <div className="admin-image-preview">{src && <Image alt={image.alt_text} height={600} sizes="(max-width: 600px) 40vw, 180px" src={src} width={480} />}{image.is_primary && <span className="primary-label"><Star aria-hidden="true" size={12} /> Principal</span>}</div>
         <label className="image-alt-label">Texto alternativo<input defaultValue={image.alt_text} disabled={busy} maxLength={120} onBlur={(event) => { void saveAltText(image, event.currentTarget.value); }} /></label>
         <div className="admin-image-actions">

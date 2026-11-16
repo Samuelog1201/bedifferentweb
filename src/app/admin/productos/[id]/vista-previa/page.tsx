@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ProductGallery } from "@/components/product-gallery";
 import { ProductInquiry } from "@/components/product-inquiry";
+import { ProductVariantProvider } from "@/components/product-variant-context";
 import { SiteHeader } from "@/components/site-header";
 import { formatCop } from "@/lib/data/product-utils";
 import { getAdminProductPreviewById } from "@/lib/data/admin-preview";
@@ -24,7 +25,7 @@ export default async function AdminProductPreviewPage({ params }: PageProps<"/ad
     <div className="preview-private-bar"><span>VISTA PREVIA PRIVADA · NO VISIBLE EN EL CATÁLOGO</span><Link href={`/admin/productos/${product.id}/editar`}><ArrowLeft aria-hidden="true" size={14} /> Volver al editor</Link></div>
     <SiteHeader />
     <div className="product-detail-wrap" id="main-content" tabIndex={-1}>
-      <div className="product-detail">
+      <ProductVariantProvider product={product}><div className="product-detail">
         <ProductGallery images={product.product_images} name={product.name} />
         <section className="product-info">
           <p className="eyebrow">{product.category.replace("-", " ")} / {states[product.commercial_status]}</p>
@@ -35,13 +36,13 @@ export default async function AdminProductPreviewPage({ params }: PageProps<"/ad
           <dl className="product-specs">
             <div><dt>Material</dt><dd>{product.material || "Consulta por WhatsApp"}</dd></div>
             <div><dt>Corte</dt><dd>{product.fit === "regular-fit" ? "Regular fit" : "Oversized"}</dd></div>
-            {product.color && <div><dt>Color</dt><dd>{product.color}</dd></div>}
+            {!product.product_variants.length && product.color && <div><dt>Color</dt><dd>{product.color}</dd></div>}
           </dl>
           {product.tags.length > 0 && <ul aria-label="Etiquetas del producto" className="product-detail-tags">{product.tags.map((tag) => <li key={tag}>{tag}</li>)}</ul>}
           <ProductInquiry product={product} productUrl={productUrl} />
           <p className="detail-footnote">La publicación se abrirá para visitantes cuando cambies su visibilidad a “Publicado”.</p>
         </section>
-      </div>
+      </div></ProductVariantProvider>
       {product.description && <section className="product-description"><p className="eyebrow">DETALLES / 01</p><p>{product.description}</p></section>}
     </div>
   </main>;

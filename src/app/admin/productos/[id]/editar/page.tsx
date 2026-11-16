@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { AdminProductForm } from "@/components/admin-product-form";
-import { AdminImageManager } from "@/components/admin-image-manager";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Product } from "@/lib/data/products";
@@ -12,7 +11,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
   const { id } = await params;
   const query = await searchParams;
   const supabase = await createClient();
-  const { data, error } = await supabase.from("products").select("*, product_images(*), product_sizes(*)").eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("products").select("*, product_images(*), product_sizes(*), product_variants(*, product_variant_images(*), product_variant_sizes(*))").eq("id", id).maybeSingle();
   if (error || !data) notFound();
   return (
     <main className="admin-shell">
@@ -26,7 +25,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
           <Link className="button button-outline" href={`/admin/productos/${data.id}/vista-previa`}><Eye aria-hidden="true" size={16} /> Vista previa</Link>
         </div>
         {query.created === "1" && <p aria-live="polite" className="form-success" role="status">Borrador creado. Añade fotografías y revisa la vista previa antes de publicar.</p>}
-        <AdminImageManager initialImages={data.product_images} productId={data.id} productName={data.name} />
+        {query.saved === "1" && <p aria-live="polite" className="form-success" role="status">Cambios guardados. Las galerías y variantes están actualizadas.</p>}
         <AdminProductForm product={data as Product} />
       </section>
     </main>
