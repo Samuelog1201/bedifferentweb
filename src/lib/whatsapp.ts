@@ -1,4 +1,4 @@
-export const approvedProductionWhatsAppNumber = "573154109495";
+export const approvedProductionWhatsAppNumber = "573053744560";
 
 export function normalizeWhatsAppNumber(value: string | undefined) {
   return (value ?? "").replace(/\D/g, "");
