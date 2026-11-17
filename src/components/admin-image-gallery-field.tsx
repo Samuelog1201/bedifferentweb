@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Star, Trash2, ArrowDown, ArrowUp } from "lucide-react";
-import { AdminImageManager, optimizeImage } from "@/components/admin-image-manager";
+import { AdminImageManager, prepareProductImage } from "@/components/admin-image-manager";
 import type { Tables } from "@/lib/supabase/database.types";
 
 type PersistedImage = Tables<"product_images"> | Tables<"product_variant_images">;
@@ -50,19 +50,19 @@ export function AdminImageGalleryField({
     }
     setBusy(true);
     setError("");
-    const prepared: StagedImage[] = [];
+    const preparedImages: StagedImage[] = [];
     try {
       for (const file of files) {
-        const optimized = await optimizeImage(file);
-        if (optimized.size > maxBytes) throw new Error("image-too-large");
-        const preview = URL.createObjectURL(optimized);
+        const preparedFile = await prepareProductImage(file);
+        if (preparedFile.size > maxBytes) throw new Error("image-too-large");
+        const preview = URL.createObjectURL(preparedFile);
         previewUrls.current.add(preview);
-        prepared.push({ id: crypto.randomUUID(), file: optimized, preview });
+        preparedImages.push({ id: crypto.randomUUID(), file: preparedFile, preview });
       }
-      setStaged((current) => [...current, ...prepared]);
-      setPrimaryId((current) => current ?? prepared[0]?.id ?? null);
+      setStaged((current) => [...current, ...preparedImages]);
+      setPrimaryId((current) => current ?? preparedImages[0]?.id ?? null);
     } catch {
-      preparedCleanup(prepared);
+      preparedCleanup(preparedImages);
       setError("No se pudieron preparar las imágenes. Comprueba los archivos e inténtalo de nuevo.");
     } finally {
       setBusy(false);

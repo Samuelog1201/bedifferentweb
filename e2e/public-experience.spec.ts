@@ -1,4 +1,10 @@
 import { expect, test } from "@playwright/test";
+import {
+  approvedProductionWhatsAppNumber,
+  buildProductInquiryMessage,
+  buildWhatsAppUrl,
+  getProductInquirySelectionError,
+} from "../src/lib/whatsapp";
 
 test("home links to the public collection", async ({ page }) => {
   await page.goto("/");
@@ -41,10 +47,114 @@ test("the public pages are reachable without a customer account", async ({ page 
     await page.goto(path);
     await expect(page.getByRole("heading", { name: heading })).toBeVisible();
     if (path === "/contacto") {
-      await expect(page.getByRole("link", { name: /Conversemos/ })).toHaveAttribute("href", "https://wa.me/573053744560");
+      await expect(page.getByRole("link", { name: /Conversemos/ })).toHaveAttribute("href", `https://wa.me/${approvedProductionWhatsAppNumber}`);
       await expect(page.getByRole("link", { name: /@bedifferentofficial_/ })).toHaveAttribute("href", "https://www.instagram.com/bedifferentofficial_/");
     }
   }
+});
+
+test("WhatsApp inquiry composes current product, variant, size, price, and an encoded click-to-chat URL", () => {
+  const firstMessage = buildProductInquiryMessage({
+    productName: "Originals Oversized Tee",
+    color: "Beige",
+    size: "L",
+    price: "$69.000 COP",
+    productUrl: "https://bedifferent.example/producto/originals-oversized-tee",
+  });
+  expect(firstMessage).toContain("Producto: Originals Oversized Tee");
+  expect(firstMessage).toContain("Color: Beige");
+  expect(firstMessage).toContain("Talla: L");
+  expect(firstMessage).toContain("Precio: $69.000 COP");
+  expect(decodeURIComponent(buildWhatsAppUrl(approvedProductionWhatsAppNumber, firstMessage))).toContain(firstMessage);
+  expect(buildWhatsAppUrl(approvedProductionWhatsAppNumber, firstMessage)).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+
+  const changedSelection = buildProductInquiryMessage({
+    productName: "Originals Oversized Tee",
+    color: "Negro",
+    size: "M",
+    price: "$69.000 COP",
+  });
+  expect(changedSelection).toContain("Color: Negro");
+  expect(changedSelection).toContain("Talla: M");
+  expect(getProductInquirySelectionError({ hasVariants: true, hasSizes: true, color: null, size: "" })).toMatch(/color/i);
+  expect(getProductInquirySelectionError({ hasVariants: true, hasSizes: true, color: "Beige", size: "" })).toMatch(/talla/i);
+  expect(getProductInquirySelectionError({ hasVariants: false, hasSizes: false, color: null, size: "" })).toBe("");
+});
+
+test("product detail images fit fully and open a navigable lightbox by click or tap", async ({ page }, testInfo) => {
+  await page.goto("/catalogo");
+  const firstProduct = page.locator(".product-card h3 a").first();
+  test.skip(!(await firstProduct.count()), "Requires at least one published product.");
+  await firstProduct.click();
+
+  const mainImage = page.locator(".gallery-main-trigger");
+  test.skip(!(await mainImage.count()), "This published product has no available product photograph.");
+  const image = page.locator(".gallery-image");
+  await expect.poll(() => image.evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(image).toHaveCSS("object-fit", "contain");
+
+  const bounds = await mainImage.boundingBox();
+  if (testInfo.project.name.includes("mobile") && bounds) {
+    await page.touchscreen.tap(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  } else {
+    await mainImage.click();
+  }
+  const dialog = page.getByRole("dialog", { name: /Fotografías de/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator(".lightbox-image")).toHaveCSS("object-fit", "contain");
+  await expect.poll(() => dialog.locator(".lightbox-image").evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+
+  const thumbnailCount = await page.locator(".gallery-thumbnail").count();
+  if (thumbnailCount > 1) {
+    await dialog.getByRole("button", { name: "Fotografía siguiente" }).click();
+    await expect(dialog.locator(".lightbox-caption")).toContainText(`02 / ${String(thumbnailCount).padStart(2, "0")}`);
+    await page.keyboard.press("ArrowLeft");
+    await expect(dialog.locator(".lightbox-caption")).toContainText(`01 / ${String(thumbnailCount).padStart(2, "0")}`);
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+});
+
+test("WhatsApp product inquiry validates choices and follows selected color, size, and price without sending", async ({ page }) => {
+  await page.goto("/catalogo");
+  const firstProduct = page.locator(".product-card h3 a").first();
+  test.skip(!(await firstProduct.count()), "Requires at least one published product.");
+  await firstProduct.click();
+
+  const productName = (await page.locator(".product-info h1").textContent())?.trim() ?? "";
+  const colorButtons = page.locator(".variant-picker button");
+  const sizeButtons = page.locator(".size-button:not(:disabled)");
+  const hasVariants = await colorButtons.count() > 0;
+  const hasSizes = await sizeButtons.count() > 0;
+  const whatsappButton = page.getByRole("link", { name: /Consultar por WhatsApp/ });
+
+  if (hasVariants) {
+    await colorButtons.nth(Math.min(1, (await colorButtons.count()) - 1)).click();
+  }
+  if (hasSizes) {
+    await whatsappButton.click();
+    await expect(page.locator(".inquiry-notice")).toContainText(/talla/i);
+    expect(await page.locator("html").getAttribute("data-whatsapp-test-url")).toBeNull();
+    await page.locator(".size-button:not(:disabled)").first().click();
+  }
+
+  await page.evaluate(() => {
+    window.open = (url?: string | URL) => {
+      document.documentElement.dataset.whatsappTestUrl = String(url ?? "");
+      return null;
+    };
+  });
+  await whatsappButton.click();
+
+  const whatsappUrl = await page.locator("html").getAttribute("data-whatsapp-test-url");
+  expect(whatsappUrl).toMatch(new RegExp(`^https://wa\\.me/${approvedProductionWhatsAppNumber}\\?text=`));
+  const url = new URL(whatsappUrl!);
+  const message = url.searchParams.get("text") ?? "";
+  expect(message).toContain(`Producto: ${productName}`);
+  expect(message).toContain(`Precio: ${(await page.locator(".detail-price").textContent())?.trim()} COP`);
+  if (hasVariants) expect(message).toContain(`Color: ${await page.locator('.variant-picker button[aria-pressed="true"]').innerText()}`);
+  if (hasSizes) expect(message).toContain(`Talla: ${await page.locator(".size-button[aria-pressed='true']").innerText()}`);
+  expect(message).toContain("Me gustaría recibir más información");
 });
 
 test("core routes load without browser errors", async ({ page }) => {
@@ -210,10 +320,14 @@ test("philosophy and legal routes fit phone, tablet, and desktop widths", async 
   }
 });
 
-test("catalog displays the empty state while no products are published", async ({ page }) => {
+test("catalog search is available with published products or the empty state", async ({ page }) => {
   await page.goto("/catalogo");
-  await expect(page.getByRole("heading", { name: "No hay productos publicados." })).toBeVisible();
   await expect(page.getByRole("searchbox", { name: "Buscar por nombre" })).toBeVisible();
+  if (await page.locator(".product-card").count()) {
+    await expect(page.locator(".product-card").first()).toBeVisible();
+  } else {
+    await expect(page.getByRole("heading", { name: "No hay productos publicados." })).toBeVisible();
+  }
 });
 
 test("empty collection copy avoids unconfirmed launch promises", async ({ page }) => {
@@ -244,7 +358,7 @@ test("layout has no horizontal overflow on a small viewport", async ({ page }) =
 
 test("catalog search and category filters are reflected in the URL", async ({ page }) => {
   await page.goto("/catalogo");
-  await page.getByRole("link", { name: "Oversized" }).click();
+  await page.getByRole("link", { name: "Oversized", exact: true }).click();
   await expect(page).toHaveURL(/category=oversized/);
   await page.getByRole("searchbox", { name: "Buscar por nombre" }).fill("SinCoincidencias");
   await page.getByRole("button", { name: "Aplicar búsqueda y filtros" }).click();

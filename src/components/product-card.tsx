@@ -22,7 +22,7 @@ export function ProductCard({ product }: { product: Product }) {
     <article className="product-card">
       <Link aria-label={`Ver ${product.name}`} className="product-media" href={`/producto/${product.slug}`}>
         {imageUrl ? (
-          <Image alt={image?.alt_text || product.name} className="product-image" height={1000} sizes="(max-width: 700px) 90vw, (max-width: 1100px) 45vw, 30vw" src={imageUrl} width={800} />
+          <Image alt={image?.alt_text || product.name} className="product-image" height={1000} quality={90} sizes="(max-width: 700px) 90vw, (max-width: 1100px) 45vw, 30vw" src={imageUrl} width={800} />
         ) : (
           <div aria-hidden="true" className="product-placeholder">
             <span>{product.category === "oversized" ? "OVR" : "REG"}</span>

@@ -12,25 +12,21 @@ const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const maxBytes = 8 * 1024 * 1024;
 const maxImages = 12;
 
-export async function optimizeImage(file: File) {
+export async function prepareProductImage(file: File) {
   const bitmap = await createImageBitmap(file);
   try {
     if (bitmap.width * bitmap.height > 40_000_000) throw new Error("image-too-large");
-    const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("canvas-unavailable");
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.88));
-    if (!blob || blob.type !== "image/webp") throw new Error("image-encoding-failed");
-    const baseName = file.name.replace(/\.[^.]+$/, "").slice(0, 100) || "bedifferent-image";
-    return new File([blob], `${baseName}.webp`, { type: "image/webp", lastModified: Date.now() });
+    return file;
   } finally {
     bitmap.close();
   }
 }
+
+const extensionByType: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 export function AdminImageManager({
   productId,
@@ -94,10 +90,12 @@ export function AdminImageManager({
     const uploaded: ProductImage[] = [];
     try {
       for (const sourceFile of files) {
-        const file = await optimizeImage(sourceFile);
+        const file = await prepareProductImage(sourceFile);
         if (file.size > maxBytes) throw new Error("optimized-image-too-large");
-        const path = `${productId}/${crypto.randomUUID()}.webp`;
-        const { error: uploadError } = await supabase.storage.from("be-different-products").upload(path, file, { contentType: "image/webp", upsert: false });
+        const extension = extensionByType[file.type];
+        if (!extension) throw new Error("unsupported-image-type");
+        const path = `${productId}/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage.from("be-different-products").upload(path, file, { contentType: file.type, upsert: false });
         if (uploadError) throw uploadError;
 
         const imageFields = {
